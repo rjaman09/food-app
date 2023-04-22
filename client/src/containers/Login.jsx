@@ -1,17 +1,100 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
+import { useDispatch, useSelector } from "react-redux";
 import { FaEnvelope, FaLock, FcGoogle } from "../assets/icons";
 import { motion } from "framer-motion";
+import { useNavigate } from "react-router-dom";
+import { getAuth, signInWithPopup, GoogleAuthProvider, createUserWithEmailAndPassword, signInWithEmailAndPassword } from "firebase/auth";
+import { app } from "../config/firebase.config";
 
 import { LoginBg, Logo } from "../assets";
 import LoginInput from "../components/LoginInput";
 
 import { buttonClick } from "../animations";
 
+import { validateUserJWTToken } from "../api";
+import { setUserDetails } from "../context/actions/userActions";
+import { alertInfo, alertWarning } from "../context/actions/alertAction";
+
 const Login = () => {
   const [userEmail, setUserEmail] = useState("");
   const [password, setPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
   const [isSignUp, setIsSignUp] = useState(false);
+
+  const firebaseAuth = getAuth(app);
+  const provider = new GoogleAuthProvider();
+
+  const navigate = useNavigate();
+  const dispatch = useDispatch();
+
+  const user = useSelector((state) => state.user);
+  // const alert = useSelector((state) => state.alert);
+
+  useEffect(() => {
+    if (user) {
+      navigate("/", { replace: true });
+    }
+  }, [user, navigate]);
+
+  const loginWithGoogle = async () => {
+    await signInWithPopup(firebaseAuth, provider).then((userCred) => {
+      firebaseAuth.onAuthStateChanged((cred) => {
+        if (cred) {
+          cred.getIdToken().then((token) => {
+            validateUserJWTToken(token).then((data) => {
+              dispatch(setUserDetails(data));
+            });
+            navigate("/", { replace: true });
+          });
+        }
+      });
+    });
+  };
+
+  const signUpWithEmailPass = async () => {
+    if ((userEmail === "" || password === "" || confirmPassword === "")) {
+      dispatch(alertInfo("All Fields are Required !!"));
+    } else {
+      if (password === confirmPassword) {
+        setUserEmail("");
+        setConfirmPassword("");
+        setPassword("");
+        await createUserWithEmailAndPassword(firebaseAuth, userEmail, password).then((userCred) => {
+          firebaseAuth.onAuthStateChanged((cred) => {
+            if (cred) {
+              cred.getIdToken().then((token) => {
+                validateUserJWTToken(token).then((data) => {
+                  dispatch(setUserDetails(data));
+                });
+                navigate("/", { replace: true });
+              });
+            }
+          });
+        });
+      } else {
+        dispatch(alertWarning("Password Doesn't Match !!"));
+      }
+    }
+  };
+
+  const signInWithEmailPass = async () => {
+    if ((userEmail !== "" && password !== "")) {
+      await signInWithEmailAndPassword(firebaseAuth, userEmail, password).then((userCred) => {
+        firebaseAuth.onAuthStateChanged((cred) => {
+          if (cred) {
+            cred.getIdToken().then((token) => {
+              validateUserJWTToken(token).then((data) => {
+                dispatch(setUserDetails(data));
+              });
+              navigate("/", { replace: true });
+            });
+          }
+        });
+      })
+    } else {
+      dispatch(alertWarning("Password Doesn't Match !!"));
+    }
+  };
 
   return (
     <div className="w-screen h-screen relative overflow-hidden flex">
@@ -90,6 +173,7 @@ const Login = () => {
             <motion.button
               { ...buttonClick }
               className="w-full px-4 py-2 rounded-md bg-orange-500 cursor-pointer text-sm text-white tracking-wide shadow-lg capitalize hover:brightness-125 hover:shadow-xl transition"
+              onClick={signUpWithEmailPass}
             >
               Sign Up
             </motion.button>
@@ -97,6 +181,7 @@ const Login = () => {
             <motion.button
               { ...buttonClick }
               className="w-full px-4 py-2 rounded-md bg-orange-500 cursor-pointer text-sm text-white tracking-wide shadow-lg capitalize hover:brightness-125 hover:shadow-xl transition"
+              onClick={signInWithEmailPass}
             >
               Sign In
             </motion.button>
@@ -114,6 +199,7 @@ const Login = () => {
         <motion.div
           { ...buttonClick }
           className="flex items-center justify-center px-20 py-2 bg-gray-100 shadow-lg hover:brightness-105 hover:shadow-xl transition backdrop-blur-md cursor-pointer rounded-3xl gap-4"
+          onClick={loginWithGoogle}
         >
           <FcGoogle className="text-2xl" />
           <p className="capitalize text-sm tracking-wide">Sign In with Google</p>

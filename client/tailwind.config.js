@@ -49,7 +49,6 @@ module.exports = {
       colors: {
         headingColor: "#2e2e2e",
         textColor: "#515151",
-        cartNumBg: "#e80013",
         primary: "#f3f3f3",
         darkOverlay: "rgba(0, 0, 0, 0.2)",
         lightOverlay: "rgba(255, 255, 255, 0.4)",
@@ -61,5 +60,5 @@ module.exports = {
       },
     },
   },
-  plugins: [],
-}
+  plugins: [require("tailwind-scrollbar")],
+};
